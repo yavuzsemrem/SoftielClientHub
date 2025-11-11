@@ -1,0 +1,289 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: Kullanıcı authenticated mı?
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function: Kullanıcı admin mi?
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function: Kullanıcı author mu?
+    function isAuthor() {
+      return isAuthenticated() && 
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'author' ||
+              isAdmin());
+    }
+    
+    // Helper function: Kullanıcı client mi?
+    function isClient() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'client';
+    }
+    
+    // Helper function: Kullanıcı kendi verisine mi erişiyor?
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function: Kullanıcı aktif mi?
+    function isUserActive() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
+    }
+
+    // ============================================
+    // OTP Kodları - Herkes oluşturabilir (güvenlik için süreli)
+    // ============================================
+    match /otp_codes/{otpId} {
+      allow read, write, create, delete: if true;
+    }
+
+    // ============================================
+    // Users Koleksiyonu
+    // ============================================
+    match /users/{userId} {
+      // Herkes okuyabilir (login için gerekli)
+      allow read: if true;
+      
+      // Kullanıcı kendi profilini güncelleyebilir (lastLoginAt, updatedAt için)
+      // Admin herkesi güncelleyebilir
+      allow write, update: if isAuthenticated() && 
+                            (isOwner(userId) || isAdmin());
+      
+      // Yeni kullanıcı oluşturma - signup sırasında
+      allow create: if isAuthenticated() && isOwner(userId);
+    }
+
+    // ============================================
+    // Admin Users (Eski sistem - backward compatibility)
+    // ============================================
+    match /admin_users/{userId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ============================================
+    // Client Hub Projects (Proje Takip Sistemi)
+    // ============================================
+    match /clientHubProjects/{projectId} {
+      // Client sadece kendi projelerini görebilir
+      // Admin tüm projeleri görebilir
+      allow read: if isAuthenticated() && isUserActive() && 
+                  (isAdmin() || 
+                   resource.data.clientId == request.auth.uid);
+      
+      // Sadece admin proje oluşturabilir/güncelleyebilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+      
+      // Tasks subcollection
+      match /tasks/{taskId} {
+        allow read: if isAuthenticated() && isUserActive() && 
+                    (isAdmin() || 
+                     get(/databases/$(database)/documents/clientHubProjects/$(projectId)).data.clientId == request.auth.uid);
+        allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+      }
+      
+      // Updates subcollection
+      match /updates/{updateId} {
+        allow read: if isAuthenticated() && isUserActive() && 
+                    (isAdmin() || 
+                     get(/databases/$(database)/documents/clientHubProjects/$(projectId)).data.clientId == request.auth.uid);
+        allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+      }
+      
+      // Messages subcollection - Client ve Admin mesajlaşabilir
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && isUserActive() && 
+                    (isAdmin() || 
+                     get(/databases/$(database)/documents/clientHubProjects/$(projectId)).data.clientId == request.auth.uid);
+        allow create: if isAuthenticated() && isUserActive() && 
+                      (isAdmin() || 
+                       get(/databases/$(database)/documents/clientHubProjects/$(projectId)).data.clientId == request.auth.uid);
+        allow update, delete: if isAuthenticated() && isUserActive() && 
+                             (isAdmin() || 
+                              (resource.data.senderId == request.auth.uid && 
+                               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'updatedAt'])));
+      }
+      
+      // Files subcollection
+      match /files/{fileId} {
+        allow read: if isAuthenticated() && isUserActive() && 
+                    (isAdmin() || 
+                     get(/databases/$(database)/documents/clientHubProjects/$(projectId)).data.clientId == request.auth.uid);
+        allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+      }
+    }
+
+    // ============================================
+    // Portfolio Projects (Mevcut Web Uygulaması)
+    // ============================================
+    match /projects/{projectId} {
+      // Herkes okuyabilir (portfolio için)
+      allow read: if true;
+      
+      // Sadece admin/author yazabilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAuthor();
+    }
+
+    // ============================================
+    // Blog Posts (Mevcut Web Uygulaması)
+    // ============================================
+    match /blogs/{blogId} {
+      // Herkes okuyabilir
+      allow read: if true;
+      
+      // Sadece admin/author yazabilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAuthor();
+    }
+
+    // ============================================
+    // Categories (Blog ve Portfolio için)
+    // ============================================
+    match /categories/{categoryId} {
+      // Herkes okuyabilir
+      allow read: if true;
+      
+      // Sadece admin/author yazabilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAuthor();
+    }
+
+    // ============================================
+    // Tags
+    // ============================================
+    match /tags/{tagId} {
+      // Herkes okuyabilir
+      allow read: if true;
+      
+      // Sadece admin/author yazabilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAuthor();
+    }
+
+    // ============================================
+    // Comments
+    // ============================================
+    match /comments/{commentId} {
+      // Herkes okuyabilir
+      allow read: if true;
+      
+      // Authenticated kullanıcılar yorum yazabilir
+      allow create: if isAuthenticated() && isUserActive();
+      
+      // Kullanıcı kendi yorumunu güncelleyebilir/silebilir
+      // Admin/Author moderasyon yapabilir
+      allow update, delete: if isAuthenticated() && isUserActive() && 
+                           (isOwner(resource.data.authorId) || isAuthor());
+    }
+
+    // ============================================
+    // Notifications
+    // ============================================
+    match /notifications/{notificationId} {
+      // Kullanıcı sadece kendi bildirimlerini görebilir
+      // Admin tüm bildirimleri görebilir
+      allow read: if isAuthenticated() && isUserActive() && 
+                  (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // Kullanıcı kendi bildirimlerini güncelleyebilir (isRead)
+      // Admin bildirim oluşturabilir
+      allow create: if isAuthenticated() && isUserActive() && isAdmin();
+      allow update: if isAuthenticated() && isUserActive() && 
+                    (isOwner(resource.data.userId) || isAdmin());
+      allow delete: if isAuthenticated() && isUserActive() && isAdmin();
+    }
+
+    // ============================================
+    // Activities
+    // ============================================
+    match /activities/{activityId} {
+      // Admin tüm aktiviteleri görebilir
+      // Client sadece kendi aktivitelerini görebilir
+      allow read: if isAuthenticated() && isUserActive() && 
+                  (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // Sadece sistem/admin aktivite oluşturabilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+    }
+
+    // ============================================
+    // Sessions
+    // ============================================
+    match /sessions/{sessionId} {
+      // Kullanıcı sadece kendi session'larını görebilir
+      // Admin tüm session'ları görebilir
+      allow read: if isAuthenticated() && isUserActive() && 
+                  (isAdmin() || resource.data.userId == request.auth.uid);
+      
+      // Session oluşturma/güncelleme - login sırasında
+      allow create: if isAuthenticated() && isUserActive() && 
+                    (isOwner(resource.data.userId) || isAdmin());
+      allow update, delete: if isAuthenticated() && isUserActive() && 
+                           (isOwner(resource.data.userId) || isAdmin());
+    }
+
+    // ============================================
+    // Media Library
+    // ============================================
+    match /media/{mediaId} {
+      // Herkes okuyabilir (public media için)
+      allow read: if true;
+      
+      // Sadece admin/author yükleyebilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAuthor();
+    }
+
+    // ============================================
+    // Stats (Admin için)
+    // ============================================
+    match /stats/{statId} {
+      allow read, write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+    }
+
+    // ============================================
+    // Admin Replies
+    // ============================================
+    match /admin_replies/{replyId} {
+      allow read, write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+    }
+
+    // ============================================
+    // Clients (Client Hub için)
+    // ============================================
+    match /clients/{clientId} {
+      // Client sadece kendi bilgilerini görebilir
+      // Admin tüm client'ları görebilir
+      allow read: if isAuthenticated() && isUserActive() && 
+                  (isAdmin() || isOwner(clientId));
+      
+      // Sadece admin client oluşturabilir/güncelleyebilir
+      allow write, create, update, delete: if isAuthenticated() && isUserActive() && isAdmin();
+    }
+
+    // ============================================
+    // Test Koleksiyonları (Development)
+    // ============================================
+    match /manual_test/{document} {
+      allow read, write: if false; // Production'da kapalı
+    }
+    
+    match /test/{document} {
+      allow read, write: if false; // Production'da kapalı
+    }
+
+    // ============================================
+    // Diğer Tüm Dokümanlar
+    // ============================================
+    match /{document=**} {
+      // Varsayılan: Sadece okuma (güvenlik için)
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
+
