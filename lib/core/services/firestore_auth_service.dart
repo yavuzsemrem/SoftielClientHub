@@ -145,26 +145,38 @@ class FirestoreAuthService {
   }
   
   /// Last login güncelle
+  /// Not: Firestore rules'da login sonrası güncelleme için özel izin var
   Future<void> _updateLastLogin(String userId) async {
-    await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(userId)
-        .update({
-      'lastLoginAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'loginAttempts': 0, // Başarılı login'de reset
-    });
+    try {
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(userId)
+          .update({
+        'lastLoginAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'loginAttempts': 0, // Başarılı login'de reset
+      });
+      debugPrint('✅ Last login updated for user: $userId');
+    } catch (e) {
+      debugPrint('⚠️ Could not update lastLoginAt: $e');
+      // Login başarılı oldu, sadece lastLoginAt güncellenemedi (kritik değil)
+    }
   }
   
   /// Login attempt sayısını artır
   Future<void> _incrementLoginAttempts(String userId) async {
-    await _firestore
-        .collection(AppConstants.usersCollection)
-        .doc(userId)
-        .update({
-      'loginAttempts': FieldValue.increment(1),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(userId)
+          .update({
+        'loginAttempts': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('⚠️ Could not increment loginAttempts: $e');
+      // Kritik değil, devam et
+    }
   }
   
   /// Logout

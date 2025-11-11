@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/presentation/login_page.dart';
@@ -5,6 +6,9 @@ import '../features/auth/presentation/signup_page.dart';
 import '../features/auth/provider/auth_provider.dart';
 import '../features/dashboard/presentation/dashboard_page.dart';
 import '../features/projects/presentation/project_detail_page.dart';
+import '../features/projects/presentation/projects_list_page.dart';
+import '../features/users/presentation/users_page.dart';
+import '../features/notifications/presentation/notifications_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final currentUser = ref.watch(currentUserProvider);
@@ -31,22 +35,55 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginPage(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const LoginPage(),
+        ),
       ),
       GoRoute(
         path: '/signup',
-        builder: (context, state) => const SignupPage(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SignupPage(),
+        ),
       ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => const DashboardPage(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const DashboardPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/projects',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ProjectsListPage(),
+        ),
       ),
       GoRoute(
         path: '/project/:id',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final projectId = state.pathParameters['id']!;
-          return ProjectDetailPage(projectId: projectId);
+          return NoTransitionPage(
+            key: state.pageKey,
+            child: ProjectDetailPage(projectId: projectId),
+          );
         },
+      ),
+      GoRoute(
+        path: '/users',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const UsersPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/notifications',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const NotificationsPage(),
+        ),
       ),
     ],
   );

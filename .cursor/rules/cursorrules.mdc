@@ -1,0 +1,274 @@
+---
+alwaysApply: true
+---
+
+🧩 PROJECT_RULES.md — Softiel Client Hub
+🔷 Project Overview
+Project Name: Softiel Client Hub
+Goal: A cross-platform mobile-first project tracking application for clients to monitor the progress, files, tasks, and communication of their ongoing freelance projects — while payments remain managed via Upwork.
+Core Principle: Transparency, professionalism, and client-friendly tracking dashboard.
+Brand Identity:
+Primary color: #0056b8
+Secondary color: #ff9700
+Accent color: #f8f9fb (light background)
+Font: system default or Google Fonts “Inter”
+🧱 1. Architecture Overview
+Framework: Flutter 3.24+
+Pattern: MVVM + Clean Architecture
+Platforms: Android, iOS (PWA), Web
+Primary Backend: Firebase (Firestore + Auth + Storage + Messaging)
+Hosting: Render.com (Free Plan)
+Domain: Cloudflare (with SSL)
+Version Control: GitHub
+CI/CD: GitHub Actions (Deploy to Render)
+Offline Cache: Isar Database
+Realtime: Firestore Realtime listeners
+Push Notifications: Firebase Cloud Messaging (FCM)
+Language: Dart
+Design Style: Material 3, responsive layout
+⚙️ 2. Core Technologies
+Purpose	Technology / Package
+Cross-platform UI	Flutter
+State management	Riverpod + Flutter Hooks
+Routing	go_router
+Local cache	Isar
+Auth	firebase_auth
+Database	cloud_firestore
+Storage	firebase_storage
+Messaging (Push)	firebase_messaging
+Networking	dio
+File picker	file_picker / image_picker
+Animations	flutter_animate
+Charts / Progress visuals	syncfusion_flutter_charts (free community license)
+Deployment	Render.com (static build for Web)
+Domain / SSL	Cloudflare
+CI/CD	GitHub Actions
+🧩 3. Folder Structure (Flutter)
+lib/
+ ├─ main.dart
+ ├─ app/
+ │   ├─ app.dart                # MaterialApp setup, theme, routes
+ │   ├─ router.dart             # go_router setup
+ │   └─ theme.dart              # Material 3 + brand colors
+ ├─ core/
+ │   ├─ constants/
+ │   ├─ widgets/                # Reusable UI components
+ │   ├─ utils/                  # Helpers, formatters
+ │   ├─ services/               # Firebase / Storage / Messaging helpers
+ │   └─ local_db/               # Isar integration
+ ├─ features/
+ │   ├─ auth/
+ │   │   ├─ presentation/       # login, signup, magic link screens
+ │   │   ├─ data/
+ │   │   └─ provider/
+ │   ├─ dashboard/
+ │   │   ├─ presentation/       # overview page, stats, progress bars
+ │   │   ├─ data/
+ │   │   └─ provider/
+ │   ├─ projects/
+ │   │   ├─ presentation/       # list + detail pages with tabs
+ │   │   ├─ data/
+ │   │   └─ provider/
+ │   ├─ tasks/
+ │   │   ├─ presentation/       # task list, percent bar, updates
+ │   │   ├─ data/
+ │   │   └─ provider/
+ │   ├─ chat/
+ │   │   ├─ presentation/       # chat ui
+ │   │   ├─ data/
+ │   │   └─ provider/
+ │   ├─ files/
+ │   │   ├─ presentation/       # file viewer, uploader
+ │   │   ├─ data/
+ │   │   └─ provider/
+ │   └─ notifications/
+ │       ├─ presentation/
+ │       ├─ data/
+ │       └─ provider/
+ assets/
+  ├─ icons/
+  ├─ images/
+  └─ translations/
+🗄️ 4. Firebase Firestore Schema
+Root collections:
+/clients
+{
+  "id": "auto",
+  "name": "John Doe",
+  "email": "john@example.com",
+  "company": "Acme Ltd",
+  "photo_url": "",
+  "created_at": "timestamp"
+}
+/projects
+{
+  "id": "auto",
+  "name": "Website Redesign",
+  "clientId": "ref->clients.id",
+  "status": "InProgress",  // Planning | InProgress | Review | Delivered
+  "progress": 75,
+  "due_date": "2025-12-01",
+  "description": "Corporate site revamp",
+  "last_update": "timestamp"
+}
+/projects/{id}/tasks
+{
+  "id": "auto",
+  "title": "UI Design",
+  "description": "Homepage and product pages",
+  "completed": true,
+  "percent": 100,
+  "created_at": "timestamp"
+}
+/projects/{id}/updates
+{
+  "id": "auto",
+  "title": "Design Phase Completed",
+  "description": "All layouts approved",
+  "progress_change": 10,
+  "created_at": "timestamp"
+}
+/projects/{id}/messages
+{
+  "id": "auto",
+  "sender_id": "uid",
+  "message": "Designs look great!",
+  "attachments": ["url1","url2"],
+  "created_at": "timestamp"
+}
+/projects/{id}/files
+{
+  "id": "auto",
+  "file_name": "logo_v2.png",
+  "uploader_id": "uid",
+  "file_url": "https://firebasestorage...",
+  "created_at": "timestamp"
+}
+/notifications
+{
+  "id": "auto",
+  "user_id": "uid",
+  "title": "New update added",
+  "body": "Development phase started",
+  "is_read": false,
+  "created_at": "timestamp"
+}
+🔒 5. Firebase Security Rules (Simplified)
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /clients/{clientId} {
+      allow read, write: if request.auth != null && request.auth.uid == clientId;
+    }
+    match /projects/{projectId} {
+      allow read, write: if request.auth != null && resource.data.clientId == request.auth.uid;
+      match /{subcollection=**}/{docId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    match /notifications/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.user_id;
+    }
+  }
+}
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /projectFiles/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+🧠 6. App Features (for Cursor to implement)
+Feature	Description
+Authentication	Email + Password + Magic Link via Firebase Auth
+Dashboard	Project overview, progress bar, quick stats
+Project List	Shows all projects of the logged-in client
+Project Detail Tabs	Overview, Tasks, Updates, Messages, Files
+Chat	Realtime via Firestore subcollection /messages
+Files	Upload/download via Firebase Storage
+Updates	Progress feed, realtime
+Notifications	Push via FCM, in-app bell icon
+Offline Support	Cache data using Isar, sync on reconnect
+PWA	Installable web version, responsive layout
+Dark Mode	Auto theme switch
+Localization	easy_localization support for EN + TR
+Error Handling	Snackbars and dialogs for all API errors
+💾 7. Deployment Rules
+Environment	Action
+Development	Run flutter run locally with Firebase emulator
+Staging / Production	flutter build web → Deploy /build/web folder to Render.com
+CI/CD	GitHub Actions builds on push to main and deploys to Render
+Domain	Cloudflare DNS client.softiel.com → Render app
+SSL	Cloudflare manages HTTPS automatically
+⚙️ 8. Performance / Optimization Rules
+Use Firestore streams only for active project.
+Paginate messages — limit to 30 per load.
+Compress images before upload.
+Use cached images (cached_network_image).
+Minimize rebuilds using Riverpod selectors.
+Preload progress data on splash screen.
+Apply debounce to search/filter.
+Use flutter_animate for micro transitions.
+Enable Firestore offline persistence.
+Use Isar for heavy caching (projects, files metadata).
+🎨 9. UI/UX Guidelines
+Element	Rule
+Layout	Material 3 adaptive layout
+Buttons	Rounded corners (16px), primary color #0056b8
+Icons	Material Icons or Lucide
+Typography	Inter / Roboto, 14–18pt
+Cards	Light shadow, rounded corners
+Progress bars	Animated linear progress using brand colors
+Notifications	Floating Snackbar (for realtime events)
+Branding	Footer: “Powered by Softiel Client Hub”
+Loading states	Skeleton shimmer placeholders
+Empty states	Illustrated icons + clear CTA text
+🔔 10. App Flow (for Cursor to follow)
+[Auth Flow]
+ └─ Login → Firebase Auth
+     ├─ Success → Dashboard
+     └─ Failure → Error dialog
+
+[Dashboard]
+ └─ Shows Project Summary
+     ├─ Tap → ProjectDetail
+     └─ Pull to refresh
+
+[ProjectDetail]
+ ├─ Overview Tab (Progress, DueDate)
+ ├─ Tasks Tab (Subtasks, %)
+ ├─ Updates Tab (timeline)
+ ├─ Chat Tab (Realtime)
+ ├─ Files Tab (Upload/Download)
+ └─ Notifications Bell (badge counter)
+
+[Notifications]
+ └─ Realtime updates via FCM + Firestore snapshot
+🧾 11. Legal & Compliance
+Include in footer or login screen:
+“Softiel Client Hub is a project tracking tool.
+All contracts and payments are handled through Upwork.
+This platform is only for project transparency and file sharing.”
+🧠 12. Future Expansion (Optional)
+Multi-user team access (freelancers + assistants)
+AI summarizer (generate weekly progress reports)
+Email notifications (Render + Firebase Function)
+Public project status link (read-only mode)
+✅ 13. Output Expectation for Cursor
+When Cursor reads this file, it should:
+Create a Flutter project with the folder hierarchy in section 3.
+Add all dependencies listed in section 2 to pubspec.yaml.
+Initialize Firebase (Auth, Firestore, Storage, Messaging).
+Generate model classes matching Firestore schema.
+Implement all UI flows in section 10.
+Build optimized APK + PWA export.
+Prepare render.yaml for Render.com deployment.
+Ensure web version is deployable to client.softiel.com.
+Use Cloudflare for SSL and caching configuration.
+🏁 14. Summary
+Mobile-first cross-platform app
+100% free infrastructure (Firebase + Render + Cloudflare)
+Clean Flutter architecture
+Secure, performant, offline-ready
+Professional client experience
+Full Upwork-compliant design

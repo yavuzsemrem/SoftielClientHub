@@ -2,83 +2,107 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../notifications/data/models/activity_model.dart';
-import '../../blog/data/models/blog_post_model.dart';
-import '../../portfolio/data/models/portfolio_project_model.dart';
+import '../../projects/data/models/project_model.dart';
 
-// İstatistikler için provider
+// Client Hub İstatistikleri için provider
 final adminStatsProvider = FutureProvider<AdminStats>((ref) async {
   final firestore = FirebaseFirestore.instance;
   
   // Paralel olarak tüm sayımları yap
   final results = await Future.wait([
-    // Blog posts sayısı
+    // Total Client Hub Projects
     firestore
-        .collection(AppConstants.blogsCollection)
-        .where('status', isEqualTo: 'published')
+        .collection(AppConstants.clientHubProjectsCollection)
         .count()
         .get(),
     
-    // Tüm blog posts (draft dahil)
+    // Active Projects (InProgress)
     firestore
-        .collection(AppConstants.blogsCollection)
+        .collection(AppConstants.clientHubProjectsCollection)
+        .where('status', isEqualTo: AppConstants.statusInProgress)
         .count()
         .get(),
     
-    // Portfolio projects sayısı
+    // Completed Projects
     firestore
-        .collection(AppConstants.projectsCollection)
+        .collection(AppConstants.clientHubProjectsCollection)
+        .where('status', isEqualTo: AppConstants.statusDelivered)
         .count()
         .get(),
     
-    // Categories sayısı
+    // Total Tasks (tüm projelerdeki task'lar)
+    // Not: Subcollection count için tüm projeleri alıp task sayısını hesaplamalıyız
     firestore
-        .collection(AppConstants.categoriesCollection)
-        .where('status', isEqualTo: 'active')
-        .count()
+        .collection(AppConstants.clientHubProjectsCollection)
         .get(),
     
-    // Tags sayısı
-    firestore
-        .collection(AppConstants.tagsCollection)
-        .where('isActive', isEqualTo: true)
-        .count()
-        .get(),
-    
-    // Users sayısı
+    // Active users (Client Hub için)
     firestore
         .collection(AppConstants.usersCollection)
         .where('isActive', isEqualTo: true)
+        .where('role', whereIn: [AppConstants.roleAdmin, AppConstants.roleClient])
         .count()
         .get(),
     
-    // Comments sayısı (pending)
+    // Inactive users
     firestore
-        .collection(AppConstants.commentsCollection)
-        .where('status', isEqualTo: AppConstants.commentStatusPending)
+        .collection(AppConstants.usersCollection)
+        .where('isActive', isEqualTo: false)
         .count()
         .get(),
     
-    // Activities sayısı (unread)
+    // Unread notifications
     firestore
-        .collection(AppConstants.activitiesCollection)
+        .collection(AppConstants.notificationsCollection)
         .where('isRead', isEqualTo: false)
+        .count()
+        .get(),
+    
+    // Total notifications
+    firestore
+        .collection(AppConstants.notificationsCollection)
         .count()
         .get(),
   ]);
   
+  // Task sayısını hesapla (tüm projelerdeki task'ları topla)
+  final projectsSnapshot = results[3] as QuerySnapshot;
+  int totalTasks = 0;
+  int completedTasks = 0;
+  
+  for (var projectDoc in projectsSnapshot.docs) {
+    try {
+      final tasksSnapshot = await firestore
+          .collection(AppConstants.clientHubProjectsCollection)
+          .doc(projectDoc.id)
+          .collection(AppConstants.tasksCollection)
+          .get();
+      
+      totalTasks += tasksSnapshot.docs.length;
+      completedTasks += tasksSnapshot.docs.where((doc) {
+        final data = doc.data();
+        return data['completed'] == true;
+      }).length;
+    } catch (e) {
+      // Subcollection yoksa devam et
+      continue;
+    }
+  }
+  
   return AdminStats(
-    publishedBlogs: results[0].count ?? 0,
-    totalBlogs: results[1].count ?? 0,
-    portfolioProjects: results[2].count ?? 0,
-    categories: results[3].count ?? 0,
-    tags: results[4].count ?? 0,
-    activeUsers: results[5].count ?? 0,
-    pendingComments: results[6].count ?? 0,
-    unreadActivities: results[7].count ?? 0,
+    totalProjects: (results[0] as AggregateQuerySnapshot).count ?? 0,
+    activeProjects: (results[1] as AggregateQuerySnapshot).count ?? 0,
+    completedProjects: (results[2] as AggregateQuerySnapshot).count ?? 0,
+    totalTasks: totalTasks,
+    completedTasks: completedTasks,
+    activeUsers: (results[4] as AggregateQuerySnapshot).count ?? 0,
+    inactiveUsers: (results[5] as AggregateQuerySnapshot).count ?? 0,
+    unreadNotifications: (results[6] as AggregateQuerySnapshot).count ?? 0,
+    totalNotifications: (results[7] as AggregateQuerySnapshot).count ?? 0,
   );
 });
 
-// Son aktiviteler için provider
+// Son aktiviteler için provider (Client Hub activities)
 final recentActivitiesProvider = StreamProvider<List<ActivityModel>>((ref) {
   return FirebaseFirestore.instance
       .collection(AppConstants.activitiesCollection)
@@ -90,49 +114,39 @@ final recentActivitiesProvider = StreamProvider<List<ActivityModel>>((ref) {
           .toList());
 });
 
-// Son blog posts için provider
-final recentBlogPostsProvider = StreamProvider<List<BlogPostModel>>((ref) {
+// Son Client Hub Projects için provider
+final recentProjectsProvider = StreamProvider<List<ProjectModel>>((ref) {
   return FirebaseFirestore.instance
-      .collection(AppConstants.blogsCollection)
-      .orderBy('createdAt', descending: true)
+      .collection(AppConstants.clientHubProjectsCollection)
+      .orderBy('last_update', descending: true)
       .limit(5)
       .snapshots()
       .map((snapshot) => snapshot.docs
-          .map((doc) => BlogPostModel.fromFirestore(doc))
-          .toList());
-});
-
-// Son portfolio projects için provider
-final recentPortfolioProjectsProvider = StreamProvider<List<PortfolioProjectModel>>((ref) {
-  return FirebaseFirestore.instance
-      .collection(AppConstants.projectsCollection)
-      .orderBy('createdAt', descending: true)
-      .limit(5)
-      .snapshots()
-      .map((snapshot) => snapshot.docs
-          .map((doc) => PortfolioProjectModel.fromFirestore(doc))
+          .map((doc) => ProjectModel.fromFirestore(doc))
           .toList());
 });
 
 class AdminStats {
-  final int publishedBlogs;
-  final int totalBlogs;
-  final int portfolioProjects;
-  final int categories;
-  final int tags;
+  final int totalProjects;
+  final int activeProjects;
+  final int completedProjects;
+  final int totalTasks;
+  final int completedTasks;
   final int activeUsers;
-  final int pendingComments;
-  final int unreadActivities;
+  final int inactiveUsers;
+  final int unreadNotifications;
+  final int totalNotifications;
 
   AdminStats({
-    required this.publishedBlogs,
-    required this.totalBlogs,
-    required this.portfolioProjects,
-    required this.categories,
-    required this.tags,
+    required this.totalProjects,
+    required this.activeProjects,
+    required this.completedProjects,
+    required this.totalTasks,
+    required this.completedTasks,
     required this.activeUsers,
-    required this.pendingComments,
-    required this.unreadActivities,
+    required this.inactiveUsers,
+    required this.unreadNotifications,
+    required this.totalNotifications,
   });
 }
 

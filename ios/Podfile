@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-# platform :ios, '12.0'
+platform :ios, '13.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -39,5 +39,60 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    
+    target.build_configurations.each do |config|
+      # iOS deployment target
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      
+      # Swift 5.9 uyumluluğu için - Xcode 15.2
+      config.build_settings['SWIFT_VERSION'] = '5.9'
+    end
   end
+  
+  # Firebase pod'larını Swift 5.9 uyumlu hale getir
+  # Tüm Swift dosyalarında Swift 6.0 özelliklerini kaldır
+  
+  def patch_swift_file(file_path)
+    return unless File.exist?(file_path)
+    
+    file_content = File.read(file_path)
+    original_content = file_content.dup
+    
+    # Swift 6.0 özelliklerini Swift 5.9 uyumlu hale getir
+    file_content.gsub!(/nonisolated\(unsafe\)\s+/, '')  # nonisolated(unsafe) kaldır
+    file_content.gsub!(/sending\s+/, '')  # sending keyword'ünü kaldır
+    file_content.gsub!(/\s+sending/, '')  # sending keyword'ünü kaldır (farklı pozisyon)
+    
+    # Access level on imports - Swift 6.0 özelliği, Swift 5.9'da desteklenmiyor
+    # Satır başında boşluk olabilir (#if bloğu içinde)
+    file_content.gsub!(/^(\s*)(private|internal|public|fileprivate)\s+import\s+/, '\1import ')  # Access level'ı kaldır
+    
+    if file_content != original_content
+      File.write(file_path, file_content)
+      return true
+    end
+    return false
+  end
+  
+  # FirebaseSharedSwift
+  firebase_shared_swift_path = File.join(installer.sandbox.root, 'FirebaseSharedSwift/FirebaseSharedSwift/Sources/third_party/FirebaseDataEncoder/FirebaseDataEncoder.swift')
+  if patch_swift_file(firebase_shared_swift_path)
+    puts "✅ FirebaseSharedSwift patched"
+  end
+  
+  # FirebaseCoreInternal
+  firebase_core_internal_path = File.join(installer.sandbox.root, 'FirebaseCoreInternal/FirebaseCore/Internal/Sources/Utilities/FIRAllocatedUnfairLock.swift')
+  if patch_swift_file(firebase_core_internal_path)
+    puts "✅ FirebaseCoreInternal patched"
+  end
+  
+  # Tüm Firebase pod'larındaki Swift dosyalarını tara ve patch et
+  Dir.glob(File.join(installer.sandbox.root, '**/*.swift')).each do |swift_file|
+    # Sadece Firebase pod'larını patch et
+    if swift_file.include?('Firebase')
+      patch_swift_file(swift_file)
+    end
+  end
+  
+  puts "✅ All Firebase pods patched for Swift 5.9 compatibility"
 end

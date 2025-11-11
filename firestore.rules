@@ -49,16 +49,24 @@ service cloud.firestore {
     // Users Koleksiyonu
     // ============================================
     match /users/{userId} {
-      // Herkes okuyabilir (login için gerekli)
+      // Herkes okuyabilir (login için gerekli - email ile arama yapabilmek için)
       allow read: if true;
       
-      // Kullanıcı kendi profilini güncelleyebilir (lastLoginAt, updatedAt için)
-      // Admin herkesi güncelleyebilir
-      allow write, update: if isAuthenticated() && 
-                            (isOwner(userId) || isAdmin());
+      // Login sonrası lastLoginAt güncellemesi için
+      // Sadece lastLoginAt, updatedAt, loginAttempts alanlarını güncelleyebilir
+      allow update: if 
+        // Sadece belirli alanları güncelleyebilir (login için)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt', 'updatedAt', 'loginAttempts']) ||
+         // VEYA authenticated kullanıcı kendi profilini güncelleyebilir
+         (isAuthenticated() && isOwner(userId)) ||
+         // VEYA admin herkesi güncelleyebilir
+         isAdmin());
       
-      // Yeni kullanıcı oluşturma - signup sırasında
-      allow create: if isAuthenticated() && isOwner(userId);
+      // Yeni kullanıcı oluşturma - signup sırasında (authenticated olmayabilir)
+      allow create: if true; // Signup için herkes oluşturabilir
+      
+      // Delete sadece admin
+      allow delete: if isAdmin();
     }
 
     // ============================================
