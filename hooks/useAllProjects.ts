@@ -3,7 +3,7 @@ import { getDocuments, orderBy } from '@/firebase/firestore';
 import { Project } from '@/types';
 
 export const useAllProjects = () => {
-  const { data: projects = [], isLoading, error } = useQuery({
+  const { data: projects = [], isLoading, error, refetch } = useQuery({
     queryKey: ['all-projects'],
     queryFn: async () => {
       // Tüm projeleri çek (admin için)
@@ -22,6 +22,7 @@ export const useAllProjects = () => {
     projects,
     isLoading,
     error,
+    refetch,
   };
 };
 

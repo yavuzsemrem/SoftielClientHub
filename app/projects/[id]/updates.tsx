@@ -6,12 +6,12 @@ import { Project } from '@/types';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabNavigation from '@/components/ui/TabNavigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { createProjectMenuItems, projectTabs } from '@/lib/projectMenuItems';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { logout } from '@/firebase/auth';
 import { useSessionStore } from '@/stores/sessionStore';
-
-import { projectTabs, createProjectMenuItems } from '@/lib/projectMenuItems';
+import { Ionicons } from '@expo/vector-icons';
 
 const styles = StyleSheet.create({
   container: {
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textAlign: 'center',
   },
-  card: {
+  updateCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 20,
     padding: 20,
@@ -53,37 +53,52 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  cardLabel: {
-    color: '#a0aec0',
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
+  updateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 12,
-    overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4299e1',
-  },
-  statusText: {
-    fontSize: 18,
-    fontWeight: '600',
+  updateTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#ffffff',
+    flex: 1,
   },
-  descriptionText: {
+  updateDate: {
+    fontSize: 12,
+    color: '#a0aec0',
+  },
+  updateBody: {
     fontSize: 16,
     color: '#cbd5e0',
     lineHeight: 24,
+    marginBottom: 12,
+  },
+  progressChange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  progressChangeText: {
+    fontSize: 14,
+    color: '#4299e1',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: '#a0aec0',
+    fontSize: 16,
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -95,27 +110,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    color: '#a0aec0',
-    fontSize: 16,
-    textAlign: 'center',
-  },
 });
 
-export default function ProjectDetailScreen() {
+export default function UpdatesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
   const { clearSession } = useSessionStore();
   
-  const { data: project, isLoading } = useQuery({
+  const { data: project, isLoading: projectLoading } = useQuery({
     queryKey: ['project', id],
     queryFn: async () => {
       if (!id) return null;
@@ -124,16 +128,27 @@ export default function ProjectDetailScreen() {
     enabled: !!id,
   });
 
+  // TODO: Implement updates query when updates collection is available
+  const { data: updates = [], isLoading: updatesLoading } = useQuery({
+    queryKey: ['updates', id],
+    queryFn: async () => {
+      // Placeholder - implement when updates collection is ready
+      return [];
+    },
+    enabled: !!id,
+  });
+
+  const isLoading = projectLoading || updatesLoading;
+
   const handleLogout = async () => {
     await logout();
     clearSession();
     router.replace('/login');
   };
 
-  // Create menu items: Main menu + Project tabs
   const menuItems = createProjectMenuItems(id as string, unreadCount);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -145,22 +160,6 @@ export default function ProjectDetailScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4299e1" />
           <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (!project || !user) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#0f172a', '#020617', '#000000']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.backgroundGradient}
-        />
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Project not found</Text>
         </View>
       </View>
     );
@@ -178,44 +177,52 @@ export default function ProjectDetailScreen() {
         
         <TabNavigation tabs={projectTabs} projectId={id as string} />
 
-        <ScrollView 
-          style={styles.content} 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>{project.name || project.title || 'Project'}</Text>
-          </View>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Updates</Text>
+        </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Progress</Text>
-            <View style={styles.progressBar}>
-              <LinearGradient
-                colors={['#4299e1', '#667eea']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.progressFill, { width: `${project.progress || 0}%` }]}
-              />
-            </View>
-            <Text style={styles.progressText}>{project.progress || 0}%</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Status</Text>
-            <Text style={styles.statusText}>
-              {project.status === 'active' ? 'Active' : project.status || 'Unknown'}
+        {updates.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="megaphone-outline" size={64} color="#a0aec0" style={styles.emptyIcon} />
+            <Text style={styles.emptyText}>No updates found</Text>
+            <Text style={[styles.emptyText, { marginTop: 8, fontSize: 14 }]}>
+              Project updates will appear here.
             </Text>
           </View>
-
-          {project.description && (
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Description</Text>
-              <Text style={styles.descriptionText}>{project.description}</Text>
+        ) : (
+          updates.map((update: any) => (
+            <View key={update.id} style={styles.updateCard}>
+              <View style={styles.updateHeader}>
+                <Text style={styles.updateTitle}>{update.title || 'Update'}</Text>
+                {update.createdAt && (
+                  <Text style={styles.updateDate}>
+                    {new Date(update.createdAt).toLocaleDateString()}
+                  </Text>
+                )}
+              </View>
+              {update.body && (
+                <Text style={styles.updateBody}>{update.body}</Text>
+              )}
+              {update.progressChange !== undefined && (
+                <View style={styles.progressChange}>
+                  <Ionicons name="trending-up-outline" size={16} color="#4299e1" />
+                  <Text style={styles.progressChangeText}>
+                    Progress: {update.progressChange > 0 ? '+' : ''}{update.progressChange}%
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-        </ScrollView>
-      </View>
+          ))
+        )}
+      </ScrollView>
+    </View>
     </DashboardLayout>
   );
 }
+

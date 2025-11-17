@@ -13,14 +13,18 @@ export default function Index() {
       try {
         const user = await getCurrentUser();
         if (user) {
+          console.log('Index: User found, role:', user.role);
           setUser(user);
-          // Role'e göre yönlendirme
-          if (user.role === 'admin') {
-            router.replace('/admin/dashboard');
-          } else {
-            router.replace('/dashboard');
-          }
+          // Kısa bir gecikme ile yönlendirme (state'in güncellenmesi için)
+          setTimeout(() => {
+            if (user.role === 'admin') {
+              router.replace('/admin/dashboard');
+            } else {
+              router.replace('/dashboard');
+            }
+          }, 100);
         } else {
+          console.log('Index: No user found, redirecting to login');
           router.replace('/login');
         }
       } catch (error) {

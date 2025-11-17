@@ -28,7 +28,19 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "name": "Softiel Client Hub",
+      "shortName": "Client Hub",
+      "lang": "tr",
+      "scope": "/",
+      "themeColor": "#0056b8",
+      "backgroundColor": "#f8f9fb",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": "/",
+      "description": "Softiel müşterilerinin devam eden projelerini takip edebileceği platform",
+      "dir": "ltr",
+      "preferRelatedApplications": false
     },
     "plugins": [
       "expo-router"

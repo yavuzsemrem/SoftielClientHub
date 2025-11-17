@@ -6,12 +6,12 @@ import { Project } from '@/types';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabNavigation from '@/components/ui/TabNavigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { createProjectMenuItems, projectTabs } from '@/lib/projectMenuItems';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { logout } from '@/firebase/auth';
 import { useSessionStore } from '@/stores/sessionStore';
-
-import { projectTabs, createProjectMenuItems } from '@/lib/projectMenuItems';
+import { Ionicons } from '@expo/vector-icons';
 
 const styles = StyleSheet.create({
   container: {
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textAlign: 'center',
   },
-  card: {
+  statCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 20,
     padding: 20,
@@ -53,37 +53,42 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  cardLabel: {
-    color: '#a0aec0',
+  statLabel: {
     fontSize: 14,
+    color: '#a0aec0',
     marginBottom: 8,
     fontWeight: '500',
   },
-  progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 24,
+  statValue: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#4299e1',
   },
-  statusText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
+  chartPlaceholder: {
+    height: 200,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
   },
-  descriptionText: {
+  chartPlaceholderText: {
+    color: '#a0aec0',
+    fontSize: 14,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: '#a0aec0',
     fontSize: 16,
-    color: '#cbd5e0',
-    lineHeight: 24,
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -95,27 +100,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    color: '#a0aec0',
-    fontSize: 16,
-    textAlign: 'center',
-  },
 });
 
-export default function ProjectDetailScreen() {
+export default function AnalyticsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
   const { clearSession } = useSessionStore();
   
-  const { data: project, isLoading } = useQuery({
+  const { data: project, isLoading: projectLoading } = useQuery({
     queryKey: ['project', id],
     queryFn: async () => {
       if (!id) return null;
@@ -124,16 +118,17 @@ export default function ProjectDetailScreen() {
     enabled: !!id,
   });
 
+  const isLoading = projectLoading;
+
   const handleLogout = async () => {
     await logout();
     clearSession();
     router.replace('/login');
   };
 
-  // Create menu items: Main menu + Project tabs
   const menuItems = createProjectMenuItems(id as string, unreadCount);
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -145,22 +140,6 @@ export default function ProjectDetailScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4299e1" />
           <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (!project || !user) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#0f172a', '#020617', '#000000']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.backgroundGradient}
-        />
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Project not found</Text>
         </View>
       </View>
     );
@@ -178,44 +157,37 @@ export default function ProjectDetailScreen() {
         
         <TabNavigation tabs={projectTabs} projectId={id as string} />
 
-        <ScrollView 
-          style={styles.content} 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>{project.name || project.title || 'Project'}</Text>
-          </View>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Analytics</Text>
+        </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Progress</Text>
-            <View style={styles.progressBar}>
-              <LinearGradient
-                colors={['#4299e1', '#667eea']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.progressFill, { width: `${project.progress || 0}%` }]}
-              />
-            </View>
-            <Text style={styles.progressText}>{project.progress || 0}%</Text>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Overall Progress</Text>
+          <Text style={styles.statValue}>{project?.progress || 0}%</Text>
+          <View style={styles.chartPlaceholder}>
+            <Ionicons name="bar-chart-outline" size={48} color="#a0aec0" />
+            <Text style={styles.chartPlaceholderText}>Progress chart will appear here</Text>
           </View>
+        </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Status</Text>
-            <Text style={styles.statusText}>
-              {project.status === 'active' ? 'Active' : project.status || 'Unknown'}
-            </Text>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Timeline</Text>
+          <View style={styles.chartPlaceholder}>
+            <Ionicons name="time-outline" size={48} color="#a0aec0" />
+            <Text style={styles.chartPlaceholderText}>Timeline visualization will appear here</Text>
           </View>
+        </View>
 
-          {project.description && (
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Description</Text>
-              <Text style={styles.descriptionText}>{project.description}</Text>
-            </View>
-          )}
-        </ScrollView>
-      </View>
+        {/* TODO: Add more analytics charts when chart library is integrated */}
+      </ScrollView>
+    </View>
     </DashboardLayout>
   );
 }
+

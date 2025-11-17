@@ -1,0 +1,28 @@
+{
+  "name": "Softiel Client Hub",
+  "short_name": "Client Hub",
+  "description": "Softiel müşterilerinin devam eden projelerini takip edebileceği platform",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f9fb",
+  "theme_color": "#0056b8",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "tr",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+

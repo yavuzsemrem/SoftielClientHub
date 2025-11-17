@@ -4,11 +4,13 @@ import { useEffect, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
-import { useProjects } from '@/hooks/useProjects';
 import { useNotifications } from '@/hooks/useNotifications';
 import { logout } from '@/firebase/auth';
 import { useSessionStore } from '@/stores/sessionStore';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { updateDocument } from '@/firebase/firestore';
+import { Notification } from '@/types';
 
 const styles = StyleSheet.create({
   container: {
@@ -46,8 +48,9 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     color: '#ffffff',
+    marginBottom: 8,
   },
-  projectCard: {
+  notificationCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 20,
     padding: 20,
@@ -60,47 +63,48 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  projectHeader: {
+  notificationCardUnread: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#4299e1',
+    backgroundColor: 'rgba(66, 153, 225, 0.1)',
+  },
+  notificationHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  projectName: {
-    fontSize: 20,
+  notificationIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
-    flex: 1,
-    marginRight: 12,
+    marginBottom: 4,
   },
-  projectProgress: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#4299e1',
-  },
-  progressBar: {
-    height: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 5,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 5,
-  },
-  projectStatus: {
+  notificationMessage: {
     fontSize: 14,
     color: '#a0aec0',
-    fontWeight: '500',
+    lineHeight: 20,
   },
-  projectFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  notificationTime: {
+    fontSize: 12,
+    color: '#718096',
     marginTop: 8,
   },
-  projectIcon: {
-    marginRight: 8,
+  notificationType: {
+    fontSize: 12,
+    color: '#4299e1',
+    fontWeight: '600',
+    marginTop: 4,
   },
   emptyState: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -126,14 +130,61 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
+  markAllReadButton: {
+    backgroundColor: 'rgba(66, 153, 225, 0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 20,
+    alignSelf: 'flex-end',
+  },
+  markAllReadText: {
+    color: '#4299e1',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
 
-export default function ProjectsScreen() {
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case 'update':
+      return 'megaphone-outline';
+    case 'approval':
+      return 'checkmark-circle-outline';
+    case 'message':
+      return 'chatbubble-outline';
+    case 'task':
+      return 'checkbox-outline';
+    case 'file':
+      return 'document-outline';
+    default:
+      return 'notifications-outline';
+  }
+};
+
+const getNotificationIconColor = (type: string) => {
+  switch (type) {
+    case 'update':
+      return '#4299e1';
+    case 'approval':
+      return '#22c55e';
+    case 'message':
+      return '#ff9700';
+    case 'task':
+      return '#667eea';
+    case 'file':
+      return '#3b82f6';
+    default:
+      return '#a0aec0';
+  }
+};
+
+export default function NotificationsScreen() {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
-  const { projects, isLoading, refetch } = useProjects();
-  const { unreadCount } = useNotifications();
+  const { notifications, isLoading, unreadCount } = useNotifications();
   const { clearSession } = useSessionStore();
+  const queryClient = useQueryClient();
 
   // Animation values for the blur circles
   const scale1 = useRef(new Animated.Value(1)).current;
@@ -211,19 +262,47 @@ export default function ProjectsScreen() {
     };
   }, []);
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login');
-    }
-  }, [user, authLoading, router]);
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      return await updateDocument('notifications', notificationId, { read: true });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.uid] });
+    },
+  });
 
-  // Redirect to admin dashboard if admin
-  useEffect(() => {
-    if (!authLoading && user && user.role === 'admin') {
-      router.replace('/admin/dashboard');
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      const unreadNotifications = notifications.filter((n) => !n.read);
+      await Promise.all(
+        unreadNotifications.map((n) => updateDocument('notifications', n.id, { read: true }))
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications', user?.uid] });
+    },
+  });
+
+  const handleNotificationPress = (notification: Notification) => {
+    if (!notification.read) {
+      markAsReadMutation.mutate(notification.id);
     }
-  }, [user, authLoading, router]);
+
+    // Navigate based on type
+    if (notification.relatedId) {
+      switch (notification.type) {
+        case 'update':
+        case 'approval':
+        case 'task':
+        case 'file':
+          router.push(`/projects/${notification.relatedId}`);
+          break;
+        case 'message':
+          router.push(`/projects/${notification.relatedId}/chat`);
+          break;
+      }
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -231,9 +310,27 @@ export default function ProjectsScreen() {
     router.replace('/login');
   };
 
-  const isLoadingData = authLoading || isLoading;
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
 
-  // Show loading screen while checking auth
+    if (minutes < 1) return 'Şimdi';
+    if (minutes < 60) return `${minutes} dakika önce`;
+    if (hours < 24) return `${hours} saat önce`;
+    if (days < 7) return `${days} gün önce`;
+    return date.toLocaleDateString('tr-TR');
+  };
+
+  const menuItems = [
+    { label: 'Dashboard', icon: 'home-outline', path: '/dashboard' },
+    { label: 'My Projects', icon: 'folder-outline', path: '/projects' },
+    { label: 'Notifications', icon: 'notifications-outline', path: '/notifications', badge: unreadCount },
+  ];
+
   if (authLoading) {
     return (
       <View style={styles.container}>
@@ -251,21 +348,9 @@ export default function ProjectsScreen() {
     );
   }
 
-  // Don't render if no user (will redirect)
   if (!user) {
     return null;
   }
-
-  // Don't render if admin (will redirect)
-  if (user.role === 'admin') {
-    return null;
-  }
-
-  const menuItems = [
-    { label: 'Dashboard', icon: 'home-outline', path: '/dashboard' },
-    { label: 'My Projects', icon: 'folder-outline', path: '/projects' },
-    { label: 'Notifications', icon: 'notifications-outline', path: '/notifications', badge: unreadCount },
-  ];
 
   return (
     <DashboardLayout menuItems={menuItems} user={user} onLogout={handleLogout}>
@@ -332,57 +417,98 @@ export default function ProjectsScreen() {
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={isLoadingData} onRefresh={refetch} tintColor="#4299e1" />}
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: ['notifications', user?.uid] })}
+              tintColor="#4299e1"
+            />
+          }
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
         >
           <View style={styles.content}>
             {/* Header */}
             <View style={styles.header}>
-              <Text style={styles.headerText}>My Projects</Text>
+              <Text style={styles.headerText}>Notifications</Text>
+              {unreadCount > 0 && (
+                <TouchableOpacity
+                  style={styles.markAllReadButton}
+                  onPress={() => markAllAsReadMutation.mutate()}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.markAllReadText}>Mark All as Read</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Projects List */}
-            {isLoadingData ? (
+            {/* Notifications List */}
+            {isLoading ? (
               <View style={styles.emptyState}>
                 <ActivityIndicator size="large" color="#4299e1" />
                 <Text style={styles.emptyText}>Loading...</Text>
               </View>
-            ) : projects.length === 0 ? (
+            ) : notifications.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="folder-outline" size={48} color="#a0aec0" />
-                <Text style={styles.emptyText}>No projects found</Text>
+                <Ionicons name="notifications-outline" size={48} color="#a0aec0" />
+                <Text style={styles.emptyText}>No notifications found</Text>
                 <Text style={[styles.emptyText, { marginTop: 8, fontSize: 14 }]}>
-                  Your projects will appear here once they are assigned to you.
+                  You'll see notifications here when there are updates on your projects.
                 </Text>
               </View>
             ) : (
-              projects.map((project: any) => (
+              notifications.map((notification: Notification) => (
                 <TouchableOpacity
-                  key={project.id}
-                  style={styles.projectCard}
-                  onPress={() => router.push(`/projects/${project.id}`)}
+                  key={notification.id}
+                  style={[
+                    styles.notificationCard,
+                    !notification.read && styles.notificationCardUnread,
+                  ]}
+                  onPress={() => handleNotificationPress(notification)}
                   activeOpacity={0.8}
                 >
-                  <View style={styles.projectHeader}>
-                    <Text style={styles.projectName}>
-                      {project.name || project.title || 'Project'}
-                    </Text>
-                    <Text style={styles.projectProgress}>{project.progress || 0}%</Text>
-                  </View>
-                  <View style={styles.progressBar}>
+                  <View style={styles.notificationHeader}>
                     <LinearGradient
-                      colors={['#4299e1', '#667eea']}
+                      colors={[
+                        `${getNotificationIconColor(notification.type)}33`,
+                        `${getNotificationIconColor(notification.type)}11`,
+                      ]}
                       start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.progressFill, { width: `${project.progress || 0}%` }]}
-                    />
-                  </View>
-                  <View style={styles.projectFooter}>
-                    <Ionicons name="time-outline" size={16} color="#a0aec0" style={styles.projectIcon} />
-                    <Text style={styles.projectStatus}>
-                      Status: {project.status === 'active' ? 'Active' : project.status || 'Unknown'}
-                    </Text>
+                      end={{ x: 1, y: 1 }}
+                      style={styles.notificationIcon}
+                    >
+                      <Ionicons
+                        name={getNotificationIcon(notification.type) as any}
+                        size={24}
+                        color={getNotificationIconColor(notification.type)}
+                      />
+                    </LinearGradient>
+                    <View style={styles.notificationContent}>
+                      <Text style={styles.notificationTitle}>{notification.title}</Text>
+                      <Text style={styles.notificationMessage}>{notification.message}</Text>
+                      <Text style={styles.notificationType}>
+                        {notification.type === 'update' ? 'Update' :
+                         notification.type === 'approval' ? 'Approval' :
+                         notification.type === 'message' ? 'Message' :
+                         notification.type === 'task' ? 'Task' :
+                         notification.type === 'file' ? 'File' : 'Notification'}
+                      </Text>
+                      <Text style={styles.notificationTime}>
+                        {formatTime(notification.createdAt)}
+                      </Text>
+                    </View>
+                    {!notification.read && (
+                      <View
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 6,
+                          backgroundColor: '#4299e1',
+                          marginLeft: 12,
+                          marginTop: 4,
+                        }}
+                      />
+                    )}
                   </View>
                 </TouchableOpacity>
               ))
@@ -393,3 +519,4 @@ export default function ProjectsScreen() {
     </DashboardLayout>
   );
 }
+

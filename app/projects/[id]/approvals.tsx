@@ -6,12 +6,12 @@ import { Project } from '@/types';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabNavigation from '@/components/ui/TabNavigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { createProjectMenuItems, projectTabs } from '@/lib/projectMenuItems';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { logout } from '@/firebase/auth';
 import { useSessionStore } from '@/stores/sessionStore';
-
-import { projectTabs, createProjectMenuItems } from '@/lib/projectMenuItems';
+import { Ionicons } from '@expo/vector-icons';
 
 const styles = StyleSheet.create({
   container: {
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textAlign: 'center',
   },
-  card: {
+  approvalCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 20,
     padding: 20,
@@ -53,37 +53,56 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
   },
-  cardLabel: {
-    color: '#a0aec0',
-    fontSize: 14,
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 4,
+  approvalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
-    overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4299e1',
-  },
-  statusText: {
-    fontSize: 18,
-    fontWeight: '600',
+  approvalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#ffffff',
+    flex: 1,
   },
-  descriptionText: {
-    fontSize: 16,
+  approvalStatus: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusPending: {
+    backgroundColor: 'rgba(255, 151, 0, 0.2)',
+    color: '#ff9700',
+  },
+  statusApproved: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    color: '#22c55e',
+  },
+  statusRejected: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    color: '#ef4444',
+  },
+  approvalNotes: {
+    fontSize: 14,
     color: '#cbd5e0',
-    lineHeight: 24,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyText: {
+    color: '#a0aec0',
+    fontSize: 16,
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -95,27 +114,16 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  emptyText: {
-    color: '#a0aec0',
-    fontSize: 16,
-    textAlign: 'center',
-  },
 });
 
-export default function ProjectDetailScreen() {
+export default function ApprovalsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
   const { clearSession } = useSessionStore();
   
-  const { data: project, isLoading } = useQuery({
+  const { data: project, isLoading: projectLoading } = useQuery({
     queryKey: ['project', id],
     queryFn: async () => {
       if (!id) return null;
@@ -124,16 +132,39 @@ export default function ProjectDetailScreen() {
     enabled: !!id,
   });
 
+  // TODO: Implement approvals query when approvals collection is available
+  const { data: approvals = [], isLoading: approvalsLoading } = useQuery({
+    queryKey: ['approvals', id],
+    queryFn: async () => {
+      // Placeholder - implement when approvals collection is ready
+      return [];
+    },
+    enabled: !!id,
+  });
+
+  const isLoading = projectLoading || approvalsLoading;
+
   const handleLogout = async () => {
     await logout();
     clearSession();
     router.replace('/login');
   };
 
-  // Create menu items: Main menu + Project tabs
   const menuItems = createProjectMenuItems(id as string, unreadCount);
 
-  if (isLoading) {
+  const getStatusStyle = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        return styles.statusApproved;
+      case 'rejected':
+      case 'revision':
+        return styles.statusRejected;
+      default:
+        return styles.statusPending;
+    }
+  };
+
+  if (isLoading || !user) {
     return (
       <View style={styles.container}>
         <LinearGradient
@@ -145,22 +176,6 @@ export default function ProjectDetailScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4299e1" />
           <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (!project || !user) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#0f172a', '#020617', '#000000']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={styles.backgroundGradient}
-        />
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Project not found</Text>
         </View>
       </View>
     );
@@ -178,44 +193,42 @@ export default function ProjectDetailScreen() {
         
         <TabNavigation tabs={projectTabs} projectId={id as string} />
 
-        <ScrollView 
-          style={styles.content} 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          showsHorizontalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>{project.name || project.title || 'Project'}</Text>
-          </View>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        showsHorizontalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Approvals</Text>
+        </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Progress</Text>
-            <View style={styles.progressBar}>
-              <LinearGradient
-                colors={['#4299e1', '#667eea']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.progressFill, { width: `${project.progress || 0}%` }]}
-              />
-            </View>
-            <Text style={styles.progressText}>{project.progress || 0}%</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardLabel}>Status</Text>
-            <Text style={styles.statusText}>
-              {project.status === 'active' ? 'Active' : project.status || 'Unknown'}
+        {approvals.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="checkmark-circle-outline" size={64} color="#a0aec0" style={styles.emptyIcon} />
+            <Text style={styles.emptyText}>No approvals found</Text>
+            <Text style={[styles.emptyText, { marginTop: 8, fontSize: 14 }]}>
+              Approval requests will appear here.
             </Text>
           </View>
-
-          {project.description && (
-            <View style={styles.card}>
-              <Text style={styles.cardLabel}>Description</Text>
-              <Text style={styles.descriptionText}>{project.description}</Text>
+        ) : (
+          approvals.map((approval: any) => (
+            <View key={approval.id} style={styles.approvalCard}>
+              <View style={styles.approvalHeader}>
+                <Text style={styles.approvalTitle}>{approval.title || 'Approval Request'}</Text>
+                <Text style={[styles.approvalStatus, getStatusStyle(approval.status)]}>
+                  {approval.status || 'Pending'}
+                </Text>
+              </View>
+              {approval.notes && (
+                <Text style={styles.approvalNotes}>{approval.notes}</Text>
+              )}
             </View>
-          )}
-        </ScrollView>
-      </View>
+          ))
+        )}
+      </ScrollView>
+    </View>
     </DashboardLayout>
   );
 }
+
