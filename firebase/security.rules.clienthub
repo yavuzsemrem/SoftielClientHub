@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // MEVCUT RULES (DEĞİŞTİRMEYİN)
+    // ============================================
+    
+    // OTP kodları - herkes oluşturabilir ve okuyabilir (güvenlik için süreli)
+    match /otp_codes/{otpId} {
+      allow read, write, create, delete: if true;
+    }
+    
+    // Admin kullanıcıları - herkes okuyabilir (login için gerekli)
+    match /admin_users/{userId} {
+      allow read: if true;
+      allow write: if false; // Sadece admin panelinden güncellenebilir
+    }
+    
+    // Users koleksiyonu - login için gerekli
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if true; // Login sırasında lastLoginAt güncellemesi için
+    }
+    
+    // Blog yazıları - herkes okuyabilir, admin paneli yazabilir
+    match /blogs/{blogId} {
+      allow read: if true;
+      allow write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Yorumlar - admin paneli için gerekli
+    match /comments/{commentId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Kategoriler - admin paneli için gerekli
+    match /categories/{categoryId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Etiketler - admin paneli için gerekli
+    match /tags/{tagId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Bildirimler - admin paneli için gerekli
+    match /notifications/{notificationId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // İstatistikler - admin paneli için gerekli
+    match /stats/{statId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Aktiviteler - admin paneli için gerekli
+    match /activities/{activityId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Projeler - admin paneli için gerekli
+    match /projects/{projectId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Admin yanıtları - admin paneli için gerekli
+    match /admin_replies/{replyId} {
+      allow read, write, create, delete: if true; // Admin paneli için
+    }
+    
+    // Test koleksiyonları - sadece development
+    match /manual_test/{document} {
+      allow read, write: if false; // Production'da kapalı
+    }
+    
+    match /test/{document} {
+      allow read, write: if false; // Production'da kapalı
+    }
+    
+    // ============================================
+    // SOFTIEL CLIENT HUB - YENİ EKLENEN RULES
+    // ============================================
+    
+    // NOT: Custom authentication kullanıldığı için request.auth kullanılamaz
+    // Security rules mevcut yapıda kalıyor (allow read: if true gibi)
+    // Client Hub projeleri 'clientId' field'ı ile filtreleniyor (kod tarafında)
+    // Güvenlik kod tarafında kontrol ediliyor (role === 'client' kontrolü)
+    
+    // Users koleksiyonu zaten mevcut rules'da var (allow read: if true, allow write: if true)
+    // Client Hub için users koleksiyonundaki 'role' field'ı 'client' olan kullanıcılar kullanılacak
+    
+    // Phases collection - Client Hub için
+    match /phases/{phaseId} {
+      allow read: if true; // Custom auth ile kod tarafında kontrol ediliyor
+      allow write: if true; // Admin paneli için
+    }
+    
+    // Tasks collection - Client Hub için
+    match /tasks/{taskId} {
+      allow read: if true; // Custom auth ile kod tarafında kontrol ediliyor
+      allow write: if true; // Admin paneli için
+    }
+    
+    // Updates collection - Client Hub için
+    match /updates/{updateId} {
+      allow read: if true; // Custom auth ile kod tarafında kontrol ediliyor
+      allow write: if true; // Admin paneli için
+    }
+    
+    // Messages collection - Client Hub için gerçek zamanlı mesajlaşma
+    match /messages/{messageId} {
+      allow read, write: if true; // Custom auth ile kod tarafında kontrol ediliyor
+    }
+    
+    // Files collection - Client Hub için dosya paylaşımı
+    match /files/{fileId} {
+      allow read: if true; // Custom auth ile kod tarafında kontrol ediliyor
+      allow write: if true; // Admin paneli için
+    }
+    
+    // Approvals collection - Client Hub için onay süreçleri
+    match /approvals/{approvalId} {
+      allow read: if true; // Custom auth ile kod tarafında kontrol ediliyor
+      allow write: if true; // Admin paneli için
+    }
+    
+    // ============================================
+    // CATCH-ALL RULE (MEVCUT - DEĞİŞTİRMEYİN)
+    // ============================================
+    
+    // Diğer tüm dokümanlar - sadece okuma
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
+

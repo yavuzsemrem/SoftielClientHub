@@ -1,274 +1,243 @@
----
-alwaysApply: true
----
+📘 CURSOR_RULES.md
+Softiel Client Hub – Expo Universal App (Mobil + Web) Kuralları
+Sürüm: 1.0
+Amaç:
+Cursor’ın tek kod tabanından hem mobil (iOS/Android) hem de web üzerinde çalışan Softiel Client Hub uygulamasını oluşturabilmesi için tüm kuralları, mimariyi ve klasör yapısını tanımlar.
 
-🧩 PROJECT_RULES.md — Softiel Client Hub
-🔷 Project Overview
-Project Name: Softiel Client Hub
-Goal: A cross-platform mobile-first project tracking application for clients to monitor the progress, files, tasks, and communication of their ongoing freelance projects — while payments remain managed via Upwork.
-Core Principle: Transparency, professionalism, and client-friendly tracking dashboard.
-Brand Identity:
-Primary color: #0056b8
-Secondary color: #ff9700
-Accent color: #f8f9fb (light background)
-Font: system default or Google Fonts “Inter”
-🧱 1. Architecture Overview
-Framework: Flutter 3.24+
-Pattern: MVVM + Clean Architecture
-Platforms: Android, iOS (PWA), Web
-Primary Backend: Firebase (Firestore + Auth + Storage + Messaging)
-Hosting: Render.com (Free Plan)
-Domain: Cloudflare (with SSL)
-Version Control: GitHub
-CI/CD: GitHub Actions (Deploy to Render)
-Offline Cache: Isar Database
-Realtime: Firestore Realtime listeners
-Push Notifications: Firebase Cloud Messaging (FCM)
-Language: Dart
-Design Style: Material 3, responsive layout
-⚙️ 2. Core Technologies
-Purpose	Technology / Package
-Cross-platform UI	Flutter
-State management	Riverpod + Flutter Hooks
-Routing	go_router
-Local cache	Isar
-Auth	firebase_auth
-Database	cloud_firestore
-Storage	firebase_storage
-Messaging (Push)	firebase_messaging
-Networking	dio
-File picker	file_picker / image_picker
-Animations	flutter_animate
-Charts / Progress visuals	syncfusion_flutter_charts (free community license)
-Deployment	Render.com (static build for Web)
-Domain / SSL	Cloudflare
-CI/CD	GitHub Actions
-🧩 3. Folder Structure (Flutter)
+🧭 1. PROJE TANIMI
+Softiel Client Hub, Softiel müşterilerinin ongoing projelerini takip edebileceği bir mobil + web uygulamasıdır.
+Uygulama aşağıdaki özellikleri sunar:
+Proje ilerleme takibi
+Aşamalar (phases)
+Görevler (tasks)
+Güncellemeler (updates)
+Dosya paylaşımı
+Onay/revizyon süreçleri
+Gerçek zamanlı mesajlaşma
+Analiz & timeline
+Bildirimler
+Final teslim paketi
+Tüm backend verisi Firebase üzerinden yönetilir.
+Uygulama Expo Universal mimarisinde yazılacaktır:
+iOS
+Android
+Web
+PWA
+Hepsi tek kod tabanından çıkacaktır.
+⚙️ 2. TEKNOLOJİ STACK
+Cursor projeyi aşağıdaki teknolojilerle oluşturmalıdır:
+Ana Teknolojiler
+Expo (React Native)
+React Native Web
+TypeScript
+Nativewind (Tailwind + RN uyumlu)
+Firebase (Auth, Firestore, Storage)
+Durum Yönetimi
+Zustand (UI state)
+React Query (server state → Firestore entegrasyonu)
+Router
+Expo Router (Hem mobil hem web için)
+Backend
+Firebase Free Tier
+Authentication
+Firestore
+Storage
+(opsiyonel) Cloud Messaging
+Deploy
+Web: Vercel veya Render Free Tier
+Mobil: Expo EAS Build (isteğe bağlı)
+PWA desteği aktif olacak
+
+🧱 3. PROJE KLASÖR YAPISI
+Cursor aşağıdaki klasör yapısını oluşturmalıdır:
+app/
+ ├─ _layout.tsx
+ ├─ index.tsx                   # Giriş ekranı / yönlendirme
+ ├─ login/
+ │   └─ index.tsx
+ ├─ dashboard/
+ │   └─ index.tsx
+ ├─ projects/
+ │   ├─ index.tsx               # Proje listesi
+ │   └─ [id]/
+ │       ├─ index.tsx           # Overview
+ │       ├─ phases.tsx
+ │       ├─ tasks.tsx
+ │       ├─ updates.tsx
+ │       ├─ chat.tsx
+ │       ├─ files.tsx
+ │       ├─ approvals.tsx
+ │       ├─ analytics.tsx
+ │       └─ deliverables.tsx
+components/
+ ├─ ui/
+ ├─ cards/
+ ├─ layout/
+ ├─ charts/
+ └─ feedback/
+firebase/
+ ├─ config.ts          # Firebase init
+ ├─ auth.ts            # Authentication helper
+ ├─ firestore.ts       # Collection helper functions
+ └─ storage.ts         # Dosya yükleme
+hooks/
+ ├─ useAuth.ts
+ ├─ useProjects.ts
+ └─ useNotifications.ts
+stores/
+ ├─ uiStore.ts
+ └─ sessionStore.ts
 lib/
- ├─ main.dart
- ├─ app/
- │   ├─ app.dart                # MaterialApp setup, theme, routes
- │   ├─ router.dart             # go_router setup
- │   └─ theme.dart              # Material 3 + brand colors
- ├─ core/
- │   ├─ constants/
- │   ├─ widgets/                # Reusable UI components
- │   ├─ utils/                  # Helpers, formatters
- │   ├─ services/               # Firebase / Storage / Messaging helpers
- │   └─ local_db/               # Isar integration
- ├─ features/
- │   ├─ auth/
- │   │   ├─ presentation/       # login, signup, magic link screens
- │   │   ├─ data/
- │   │   └─ provider/
- │   ├─ dashboard/
- │   │   ├─ presentation/       # overview page, stats, progress bars
- │   │   ├─ data/
- │   │   └─ provider/
- │   ├─ projects/
- │   │   ├─ presentation/       # list + detail pages with tabs
- │   │   ├─ data/
- │   │   └─ provider/
- │   ├─ tasks/
- │   │   ├─ presentation/       # task list, percent bar, updates
- │   │   ├─ data/
- │   │   └─ provider/
- │   ├─ chat/
- │   │   ├─ presentation/       # chat ui
- │   │   ├─ data/
- │   │   └─ provider/
- │   ├─ files/
- │   │   ├─ presentation/       # file viewer, uploader
- │   │   ├─ data/
- │   │   └─ provider/
- │   └─ notifications/
- │       ├─ presentation/
- │       ├─ data/
- │       └─ provider/
- assets/
-  ├─ icons/
-  ├─ images/
-  └─ translations/
-🗄️ 4. Firebase Firestore Schema
-Root collections:
-/clients
-{
-  "id": "auto",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "company": "Acme Ltd",
-  "photo_url": "",
-  "created_at": "timestamp"
-}
-/projects
-{
-  "id": "auto",
-  "name": "Website Redesign",
-  "clientId": "ref->clients.id",
-  "status": "InProgress",  // Planning | InProgress | Review | Delivered
-  "progress": 75,
-  "due_date": "2025-12-01",
-  "description": "Corporate site revamp",
-  "last_update": "timestamp"
-}
-/projects/{id}/tasks
-{
-  "id": "auto",
-  "title": "UI Design",
-  "description": "Homepage and product pages",
-  "completed": true,
-  "percent": 100,
-  "created_at": "timestamp"
-}
-/projects/{id}/updates
-{
-  "id": "auto",
-  "title": "Design Phase Completed",
-  "description": "All layouts approved",
-  "progress_change": 10,
-  "created_at": "timestamp"
-}
-/projects/{id}/messages
-{
-  "id": "auto",
-  "sender_id": "uid",
-  "message": "Designs look great!",
-  "attachments": ["url1","url2"],
-  "created_at": "timestamp"
-}
-/projects/{id}/files
-{
-  "id": "auto",
-  "file_name": "logo_v2.png",
-  "uploader_id": "uid",
-  "file_url": "https://firebasestorage...",
-  "created_at": "timestamp"
-}
-/notifications
-{
-  "id": "auto",
-  "user_id": "uid",
-  "title": "New update added",
-  "body": "Development phase started",
-  "is_read": false,
-  "created_at": "timestamp"
-}
-🔒 5. Firebase Security Rules (Simplified)
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /clients/{clientId} {
-      allow read, write: if request.auth != null && request.auth.uid == clientId;
-    }
-    match /projects/{projectId} {
-      allow read, write: if request.auth != null && resource.data.clientId == request.auth.uid;
-      match /{subcollection=**}/{docId} {
-        allow read, write: if request.auth != null;
-      }
-    }
-    match /notifications/{docId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.user_id;
-    }
-  }
-}
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /projectFiles/{allPaths=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
-🧠 6. App Features (for Cursor to implement)
-Feature	Description
-Authentication	Email + Password + Magic Link via Firebase Auth
-Dashboard	Project overview, progress bar, quick stats
-Project List	Shows all projects of the logged-in client
-Project Detail Tabs	Overview, Tasks, Updates, Messages, Files
-Chat	Realtime via Firestore subcollection /messages
-Files	Upload/download via Firebase Storage
-Updates	Progress feed, realtime
-Notifications	Push via FCM, in-app bell icon
-Offline Support	Cache data using Isar, sync on reconnect
-PWA	Installable web version, responsive layout
-Dark Mode	Auto theme switch
-Localization	easy_localization support for EN + TR
-Error Handling	Snackbars and dialogs for all API errors
-💾 7. Deployment Rules
-Environment	Action
-Development	Run flutter run locally with Firebase emulator
-Staging / Production	flutter build web → Deploy /build/web folder to Render.com
-CI/CD	GitHub Actions builds on push to main and deploys to Render
-Domain	Cloudflare DNS client.softiel.com → Render app
-SSL	Cloudflare manages HTTPS automatically
-⚙️ 8. Performance / Optimization Rules
-Use Firestore streams only for active project.
-Paginate messages — limit to 30 per load.
-Compress images before upload.
-Use cached images (cached_network_image).
-Minimize rebuilds using Riverpod selectors.
-Preload progress data on splash screen.
-Apply debounce to search/filter.
-Use flutter_animate for micro transitions.
-Enable Firestore offline persistence.
-Use Isar for heavy caching (projects, files metadata).
-🎨 9. UI/UX Guidelines
-Element	Rule
-Layout	Material 3 adaptive layout
-Buttons	Rounded corners (16px), primary color #0056b8
-Icons	Material Icons or Lucide
-Typography	Inter / Roboto, 14–18pt
-Cards	Light shadow, rounded corners
-Progress bars	Animated linear progress using brand colors
-Notifications	Floating Snackbar (for realtime events)
-Branding	Footer: “Powered by Softiel Client Hub”
-Loading states	Skeleton shimmer placeholders
-Empty states	Illustrated icons + clear CTA text
-🔔 10. App Flow (for Cursor to follow)
-[Auth Flow]
- └─ Login → Firebase Auth
-     ├─ Success → Dashboard
-     └─ Failure → Error dialog
+ ├─ utils.ts
+ ├─ constants.ts
+ └─ helpers.ts
+types/
+ ├─ project.ts
+ ├─ task.ts
+ ├─ message.ts
+ └─ file.ts
+assets/
+ ├─ icons/
+ └─ images/
+styles/
+ ├─ globals.css
+ └─ nativewind.css
 
-[Dashboard]
- └─ Shows Project Summary
-     ├─ Tap → ProjectDetail
-     └─ Pull to refresh
+🎨 4. TASARIM KURALLARI
+Renkler
+Primary: #0056b8
+Secondary: #ff9700
+Background: #f8f9fb
+Surface: #ffffff
+Text: #1f1f1f
+Stil kuralları:
+Tüm UI Nativewind ile yazılmalı (Tailwind benzeri sınıflar)
+Mobil-first tasarım
+Kart tabanlı layout
+Progress bar ve timeline bileşenleri
+Light/Dark mode desteği
+Web’de responsive grid
+Mobilde bottom tab yapısı, web’de side menu
 
-[ProjectDetail]
- ├─ Overview Tab (Progress, DueDate)
- ├─ Tasks Tab (Subtasks, %)
- ├─ Updates Tab (timeline)
- ├─ Chat Tab (Realtime)
- ├─ Files Tab (Upload/Download)
- └─ Notifications Bell (badge counter)
+🔥 5. UYGULAMA ÖZELLİKLERİ (MODÜLLER)
+Cursor aşağıdaki modüllerin temel iskeletini oluşturmalıdır:
+1. Giriş (Auth)
+Firebase Auth login
+Şifre sıfırlama
+Login → Dashboard yönlendirme
+2. Dashboard
+Son güncellemeler
+Bekleyen onaylar
+Proje ilerleme yüzdesi
+Yaklaşan hedefler
+3. Proje Listeleme
+Firebase’den proje çek
+Kart görünümünde listele
+4. Proje Detay (Tabs)
+Overview
+Phases
+Tasks
+Updates
+Chat
+Files
+Approvals
+Analytics
+Deliverables
+5. Mesajlaşma
+Firestore real-time messages
+Text + image upload
+Reply sistemi
+6. Dosyalar
+Storage upload
+Versiyon desteği
+7. Onaylar
+Müşteri onayı
+Revizyon isteği
+8. Analitik
+Basit grafikler
+React Native Skia veya Victory Native
+9. Bildirimler
+In-app bildirim listesi
+Web push (opsiyonel)
+10. PWA
+Web’de PWA desteği aktif olacak
 
-[Notifications]
- └─ Realtime updates via FCM + Firestore snapshot
-🧾 11. Legal & Compliance
-Include in footer or login screen:
-“Softiel Client Hub is a project tracking tool.
-All contracts and payments are handled through Upwork.
-This platform is only for project transparency and file sharing.”
-🧠 12. Future Expansion (Optional)
-Multi-user team access (freelancers + assistants)
-AI summarizer (generate weekly progress reports)
-Email notifications (Render + Firebase Function)
-Public project status link (read-only mode)
-✅ 13. Output Expectation for Cursor
-When Cursor reads this file, it should:
-Create a Flutter project with the folder hierarchy in section 3.
-Add all dependencies listed in section 2 to pubspec.yaml.
-Initialize Firebase (Auth, Firestore, Storage, Messaging).
-Generate model classes matching Firestore schema.
-Implement all UI flows in section 10.
-Build optimized APK + PWA export.
-Prepare render.yaml for Render.com deployment.
-Ensure web version is deployable to client.softiel.com.
-Use Cloudflare for SSL and caching configuration.
-🏁 14. Summary
-Mobile-first cross-platform app
-100% free infrastructure (Firebase + Render + Cloudflare)
-Clean Flutter architecture
-Secure, performant, offline-ready
-Professional client experience
-Full Upwork-compliant design
+🗄️ 6. FIREBASE VERİ MODELİ
+clients
+id, name, email, company, photoUrl, createdAt
+projects
+id, clientId, name, status, progress, dueDate, lastUpdate
+phases
+id, title, percent, startDate, endDate
+tasks
+id, phaseId, title, description, percent, completed
+updates
+id, title, body, progressChange
+messages
+id, senderId, message, attachments[]
+files
+id, fileName, url, category, version
+approvals
+id, title, status, notes
+
+🔒 7. FIREBASE SECURITY RULES
+Cursor proje içinde firebase/security.rules dosyası oluşturmalı.
+Genel koşul:
+Kullanıcı sadece kendi projelerini okuyabilir.
+Auth zorunlu.
+
+🚀 8. KURULUM VE GEREKLİ PAKETLER
+Cursor proje oluştururken aşağıdaki paketleri yüklemelidir:
+expo
+react-native
+react-native-web
+expo-router
+@react-native-firebase/app
+firebase
+@tanstack/react-query
+zustand
+nativewind
+typescript
+Tailwind/Nativewind yapılandırması da otomatik yapılmalı.
+
+🌐 9. WEB DESTEĞİ
+Cursor aşağıdakileri yapmalı:
+Expo web ayarları aktif
+Web build alınabilir
+PWA modülü eklenmeli
+Web deploy için hazır index.html, manifest.json, service-worker.js oluşturulmalı
+
+📱 10. MOBİL DERLEME
+Cursor proje sonunda:
+npx expo prebuild
+eas.json
+Android APK/AAB için hazır konfigürasyon
+oluşturmalıdır.
+
+📦 11. ORTAK COMPONENT PRENSİPLERİ
+Tüm UI React Native component’larıyla yazılmalı
+Web tarafında RN Web ile otomatik render edilmeli
+“Platform detection” minimal kullanılmalı (Platform.OS === 'web')
+Component’ler mümkün olduğunca evrensel olmalı
+
+⚠️ 12. HATALARDAN KAÇINMA (IMPORT RULES)
+Kesinlikle react-native UI komponentlerini doğrudan DOM için kullanma.
+Web için inline CSS değil, Nativewind kullanılacak.
+State UI yönetimi Zustand, server state React Query olmalı.
+Firebase işlemleri UI komponentlerinin içine gömülmemeli.
+
+📌 13. YASAL UYARI (UYGULAMADA GÖRÜNECEK)
+Giriş ekranı altında gösterilecek:
+Softiel Client Hub yalnızca proje takibi içindir.
+Tüm ödemeler ve sözleşmeler Upwork üzerinden yapılır.
+
+🎯 14. CURSOR’DAN BEKLENEN SONUÇ
+Cursor bu kuralları okuyarak:
+✔ Universal Expo uygulamasını oluşturmalı
+✔ Mobil + Web + PWA desteklemeli
+✔ Tüm klasör yapısını kurmalı
+✔ Firebase bağlantısını hazırlamalı
+✔ UI iskeletini oluşturmalı
+✔ Dashboard + Project + Chat + Tasks temel ekranlarını açmalı
+✔ Tailwind/Nativewind sistemini kurmalı
+
